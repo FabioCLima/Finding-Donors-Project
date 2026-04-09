@@ -1,0 +1,72 @@
+paths:
+  raw_data: data/raw/census.csv
+  model_dir: models
+  figure_dir: figs
+  reports_dir: reports/metrics
+  experiments_dir: reports/experiments
+  processed_snapshot: data/processed/census_features.csv
+
+runtime:
+  random_state: 42
+  test_size: 0.2
+  beta: 0.5
+  cv_splits: 5
+  threshold_candidates: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+
+data:
+  target_col: income
+  binary_target_col: target
+  positive_label: ">50K"
+  rare_country_min_support: 50
+  required_columns:
+    - age
+    - workclass
+    - education_level
+    - education-num
+    - marital-status
+    - occupation
+    - relationship
+    - race
+    - sex
+    - capital-gain
+    - capital-loss
+    - hours-per-week
+    - native-country
+    - income
+  numeric_source_columns:
+    - age
+    - education-num
+    - capital-gain
+    - capital-loss
+    - hours-per-week
+  drop_columns:
+    - education-num
+    - fnlwgt
+  sensitive_columns:
+    - sex
+    - race
+    - native-country
+
+features:
+  numeric_features:
+    - age
+    - hours-per-week
+    - capital_gain_log
+    - capital_loss_log
+    - capital_gain_flag
+    - capital_loss_flag
+  categorical_features:
+    - workclass
+    - education_level
+    - marital-status
+    - occupation
+    - relationship
+
+models:
+  n_jobs: -1
+  tune_iterations:
+    HistGradientBoosting: 24
+    RandomForest: 20
+    LogisticRegression: 12
+    LogisticRegressionBalanced: 12
+

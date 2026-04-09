@@ -5,33 +5,22 @@
 
 ### 1. Introduction
 
-In this project, you will employ several supervised algorithms of your choice to accurately model individuals' income using data collected from the 1994 U.S. Census. You will then choose the best candidate algorithm from preliminary results and further optimize this algorithm to best model the data. Your goal with this implementation is to construct a model that accurately predicts whether an individual makes more than $50,000. This sort of task can arise in a non-profit setting, where organizations survive on donations.  Understanding an individual's income can help a non-profit better understand how large of a donation to request, or whether or not they should reach out to begin with.  While it can be difficult to determine an individual's general income bracket directly from public sources, we can (as we will see) infer this value from other publically available features.
+This project applies supervised learning to census data collected from the 1994 U.S. Census to help CharityML, a fictional non-profit, identify individuals most likely to donate. The core task is a binary classification problem: predict whether a person earns more than $50,000 per year. Because high-income individuals are more likely to make large donations, this model helps CharityML prioritize outreach, reduce campaign cost, and improve return on investment.
 
-The dataset for this project originates from the [UCI Machine Learning Repository](https://archive.ics.uci.edu/ml/datasets/Census+Income). The datset was donated by Ron Kohavi and Barry Becker, after being published in the article _"Scaling Up the Accuracy of Naive-Bayes Classifiers: A Decision-Tree Hybrid"_. You can find the article by Ron Kohavi [online](https://www.aaai.org/Papers/KDD/1996/KDD96-033.pdf). The data we investigate here consists of small changes to the original dataset, such as removing the `fnlwgt` feature and records with missing or ill-formatted entries.
+The dataset originates from the [UCI Machine Learning Repository](https://archive.ics.uci.edu/ml/datasets/Census+Income). It was donated by Ron Kohavi and Barry Becker after being published in the article _"Scaling Up the Accuracy of Naive-Bayes Classifiers: A Decision-Tree Hybrid"_. The data used here includes small modifications to the original, such as removing the `fnlwgt` feature and records with missing or ill-formatted entries.
+
+---
 
 ### 2. Dataset
 
-`Featureset Exploration`
+**Size:** 45,222 records — 34,014 with income `<=50K` (~75%) and 11,208 with income `>50K` (~25%).
 
-* **age**: continuous.
-* **workclass**: Private, Self-emp-not-inc, Self-emp-inc, Federal-gov, Local-gov, State-gov, Without-pay, Never-worked.
-* **education**: Bachelors, Some-college, 11th, HS-grad, Prof-school, Assoc-acdm, Assoc-voc, 9th, 7th-8th, 12th, Masters, 1st-4th, 10th, Doctorate, 5th-6th, Preschool.
-* **education-num**: continuous.
-* **marital-status**: Married-civ-spouse, Divorced, Never-married, Separated, Widowed, Married-spouse-absent, Married-AF-spouse.
-* **occupation**: Tech-support, Craft-repair, Other-service, Sales, Exec-managerial, Prof-specialty, Handlers-cleaners, Machine-op-inspct, Adm-clerical, Farming-fishing, Transport-moving, Priv-house-serv, Protective-serv, Armed-Forces.
-* **relationship**: Wife, Own-child, Husband, Not-in-family, Other-relative, Unmarried.
-* **race**: Black, White, Asian-Pac-Islander, Amer-Indian-Eskimo, Other.
-* **sex**: Female, Male.
-* **capital-gain**: continuous.
-* **capital-loss**: continuous.
-* **hours-per-week**: continuous.
-* **native-country**: United-States, Cambodia, England, Puerto-Rico, Canada, Germany, Outlying-US(Guam-USVI-etc), India, Japan, Greece, South, China, Cuba, Iran, Honduras, Philippines, Italy, Poland, Jamaica, Vietnam, Mexico, Portugal, Ireland, France, Dominican-Republic, Laos, Ecuador, Taiwan, Haiti, Columbia, Hungary, Guatemala, Nicaragua, Scotland, Thailand, Yugoslavia, El-Salvador, Trinadad&Tobago, Peru, Hong, Holand-Netherlands.
+The target variable is imbalanced: approximately 75% of individuals earn `<=50K`. This motivated the choice of **F-beta score (β = 0.5)** as the primary evaluation metric, which weights precision more heavily than recall — appropriate when false positives (contacting non-donors) carry an operational cost.
 
-#### 2.1 Semantic meaning of each feature
+#### 2.1 Features
 
 | Feature | Type | Semantic Group | Meaning |
-|---|---|---|---|
-
+| --- | --- | --- | --- |
 | `age` | Continuous | Demographic | Individual's age in years |
 | `sex` | Binary | Demographic | Biological sex (Female / Male) |
 | `race` | Categorical | Demographic | Self-identified racial group |
@@ -46,3 +35,143 @@ The dataset for this project originates from the [UCI Machine Learning Repositor
 | `capital-gain` | Continuous | Financial | Income from capital asset investments |
 | `capital-loss` | Continuous | Financial | Losses from capital asset sales |
 
+---
+
+### 3. Methodology
+
+#### 3.1 Preprocessing
+
+- Log transformation (`np.log1p`) applied to `capital-gain` and `capital-loss` to reduce skewness.
+- `MinMaxScaler` applied to all numerical features.
+- One-hot encoding via `pd.get_dummies()` on all categorical variables (103 features after encoding).
+- Target variable binarized: `<=50K → 0`, `>50K → 1`.
+- Train/test split (80/20) with `stratify=income` to preserve class proportions.
+
+| Split | Samples |
+| --- | ---: |
+| Training set | 36,177 |
+| Test set | 9,045 |
+
+#### 3.2 Naive Predictor Baseline
+
+A naive predictor that always predicts `>50K` was used as a lower bound reference:
+
+| Metric | Value |
+| --- | ---: |
+| Accuracy | 0.2478 |
+| F-score (β=0.5) | 0.2917 |
+
+#### 3.3 Model Comparison
+
+Three supervised learning algorithms were evaluated at 1%, 10%, and 100% of the training data:
+
+| Model | Strengths |
+| --- | --- |
+| `LogisticRegression` | Fast, interpretable baseline; good for linearly separable features |
+| `RandomForestClassifier` | Robust to non-linear patterns; provides feature importance estimates |
+| `GradientBoostingClassifier` | High performance on tabular data; sequential error correction |
+
+**`GradientBoostingClassifier`** was selected as the final model based on its highest F-score (β=0.5) at 100% training data with acceptable training time.
+
+#### 3.4 Hyperparameter Tuning
+
+`GridSearchCV` with `StratifiedKFold (cv=5)` and `make_scorer(fbeta_score, beta=0.5)` was used to tune:
+
+- `n_estimators`
+- `learning_rate`
+- `max_depth`
+
+#### 3.5 Final Results
+
+|     Metric     | Naive Predictor | Unoptimized Model | Optimized Model |
+| :------------: | :-------------: | :---------------: | :-------------: |
+| Accuracy       | 0.2478          | 0.8639            | **0.8719**      |
+| F-score (β=0.5)| 0.2917          | 0.7461            | **0.7581**      |
+
+The optimized model improved both accuracy (+0.008) and F-score (+0.012) over the unoptimized model, and vastly outperformed the naive baseline.
+
+#### 3.6 Feature Importance and Reduction
+
+Feature importances were extracted using `RandomForestClassifier`. Top 5 features:
+
+1. `age`
+2. `hours-per-week`
+3. `capital-gain`
+4. `marital-status__Married-civ-spouse`
+5. `education-num`
+
+A reduced model trained on only these 5 features achieved accuracy of **0.8526** and F-score of **0.7172** — a performance drop that confirms the remaining features still carry useful signal.
+
+---
+
+### 4. Project Structure
+
+```text
+Finding_Donors_Project/
+├── configs/
+│   └── base.yaml
+├── data/
+│   ├── raw/
+│   ├── interim/
+│   └── processed/
+├── figs/
+├── models/
+├── notebooks/
+│   ├── finding_donors.ipynb
+│   └── finding_donors_crispdm.ipynb
+├── reports/
+│   ├── experiments/
+│   └── metrics/
+├── scripts/
+│   ├── run_pipeline.py
+│   └── run_train.py
+├── src/
+│   └── finding_donors/
+│       ├── core/
+│       ├── data/
+│       ├── features/
+│       ├── models/
+│       ├── evaluation/
+│       └── pipeline.py
+├── tests/
+├── docs/
+│   └── Analyze_Finding_Donors_from_Udacity.md
+└── README.md
+```
+
+---
+
+### 5. Dependencies
+
+- Python 3.x
+- `numpy`, `pandas`, `scipy`
+- `scikit-learn`, `joblib`
+- `matplotlib`, `seaborn`
+- `loguru` (structured logging)
+- `pydantic`, `pydantic-settings` (typed config and validation)
+- `pyyaml` (external config files)
+
+---
+
+### 6. Run the Refactored Pipeline
+
+```bash
+uv sync
+uv run python scripts/run_train.py
+```
+
+Optional:
+
+```bash
+uv run python scripts/run_train.py --config configs/base.yaml --log-level DEBUG
+```
+
+---
+
+### 7. References
+
+1. Kohavi, R. (1996). Scaling Up the Accuracy of Naive-Bayes Classifiers: A Decision-Tree Hybrid. _Proceedings of the Second International Conference on Knowledge Discovery and Data Mining (KDD-96)_.
+2. Hosmer, D. W., & Lemeshow, S. (2000). _Applied Logistic Regression_ (2nd ed.). Wiley-Interscience.
+3. Breiman, L. (2001). Random Forests. _Machine Learning_, 45(1), 5–32. [https://doi.org/10.1023/A:1010933404324](https://doi.org/10.1023/A:1010933404324)
+4. Friedman, J. H. (2001). Greedy function approximation: A gradient boosting machine. _Annals of Statistics_, 29(5), 1189–1232. [https://doi.org/10.1214/aos/1013203451](https://doi.org/10.1214/aos/1013203451)
+5. UCI Machine Learning Repository — Census Income dataset: [https://archive.ics.uci.edu/ml/datasets/Census+Income](https://archive.ics.uci.edu/ml/datasets/Census+Income)

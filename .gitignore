@@ -12,3 +12,23 @@ wheels/
 # Local tooling configuration
 .codex
 .claude/settings.local.json
+
+# docs/
+
+# Jupyter notebooks que não correspondem ao projeto original
+notebooks/finding_donors_crispdm.ipynb
+notebooks/finding_donors_version_study.ipynb
+
+# Pipeline artifacts
+models/*.joblib
+models/*.json
+reports/metrics/*
+reports/experiments/*
+figs/*.png
+data/processed/*.csv
+
+# Keep placeholder files
+!reports/metrics/.gitkeep
+!reports/experiments/.gitkeep
+!data/processed/.gitkeep
+!figs/.gitkeep
